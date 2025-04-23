@@ -28,33 +28,25 @@ public class ServidorPrincipal {
         
         // Paso 0a: Leer llaves de archivo 
         //cargarLlavesRSA();
-        
-        // Crear un thread pool para manejar múltiples conexiones de clientes
-        threadPool = Executors.newFixedThreadPool(32); // Limitar el número de hilos
 
-        try (ServerSocket serverSocket = new ServerSocket(PUERTO)) {
-            System.out.println("Servidor principal iniciado en puerto " + PUERTO);
+        // Crear el socket del servidor, crea un hilo para cada cliente
+        try(ServerSocket serverSocket = new ServerSocket(PUERTO)){
+            System.out.println("Servidor listo y esperando en el puerto: "+PUERTO);
+            while(true){
+            Socket clientSocket = serverSocket.accept();
+            System.out.println("1.  Cliente conectado: "+clientSocket.getInetAddress());
+            ClienteHandler clientHandler = new ClienteHandler(clientSocket);
+            clientHandler.start();
+            }
             
-            while (true) {
-                try {
-                    Socket clienteSocket = serverSocket.accept();
-                    System.out.println("Cliente conectado: " + clienteSocket.getInetAddress());
-                    
-                    // Crear y manejar cada cliente en un hilo delegado
-                    threadPool.execute(new ClienteHandler(clienteSocket));
-                } catch (IOException e) {
-                    System.err.println("Error aceptando conexión: " + e.getMessage());
-                }
-            }
-        } catch (IOException e) {
-            System.err.println("Error al crear el socket del servidor: " + e.getMessage());
-        } finally {
-            // Cerrar el thread pool cuando el servidor termine
-            if (threadPool != null) {
-                threadPool.shutdown();
-            }
+        } catch(IOException e){
+            System.out.println("No se pudo crear el socket en el puerto "+PUERTO);
         }
+    
     }
+    
+
+    
     
     private static void inicializarServicios() {
         // Inicializar la tabla de servicios predefinida
