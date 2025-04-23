@@ -1,9 +1,12 @@
 import java.io.*;
 import java.math.BigInteger;
 import java.net.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.*;
 import java.security.spec.*;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Scanner;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.*;
@@ -228,14 +231,12 @@ public class Cliente {
     
     private static void cargarLlavePublica() {
         try {
-            // Cargar llave pública RSA del servidor desde un archivo
-            File archivoLlave = new File("servidor_publica.key");
-            FileInputStream fis = new FileInputStream(archivoLlave);
-            byte[] keyBytes = new byte[(int) archivoLlave.length()];
-            fis.read(keyBytes);
-            fis.close();
+            // Cargar y decodificar llave pública RSA desde archivo .txt
+            String publicKeyBase64 = new String(Files.readAllBytes(Paths.get("public.txt")));
+            byte[] decodedPublicKey = Base64.getDecoder().decode(publicKeyBase64);
             
-            X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
+            // Crear la llave pública a partir de los datos decodificados
+            X509EncodedKeySpec spec = new X509EncodedKeySpec(decodedPublicKey);
             KeyFactory kf = KeyFactory.getInstance("RSA");
             llavePublicaRSA = kf.generatePublic(spec);
             
