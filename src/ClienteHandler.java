@@ -14,7 +14,7 @@ import java.util.concurrent.Executors;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.*;
 
-public class ClienteHandler implements Runnable {
+public class ClienteHandler extends Thread  {
     private Socket clienteSocket;
     private DataInputStream entrada;
     private DataOutputStream salida;
