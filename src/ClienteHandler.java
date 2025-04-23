@@ -71,37 +71,46 @@ public class ClienteHandler extends Thread  {
     public void run() {
         try {                
             // Inicializar tabla de servicios
+            
             inicializarServicios();
             // Paso 0a: Leer llaves de archivo 
             cargarLlavesRSA();
+            System.out.println("0a. Se leyeron las llaves de archivos extosamente.");
             // Paso 1: Recibir "HELLO" del cliente
             String mensaje = entrada.readUTF();
             if (!mensaje.equals("HELLO")) {
                 System.err.println("Mensaje incorrecto recibido. Se esperaba 'HELLO'");
                 return;
             }
+            else{
+                System.out.println("1. Se recibio HELLO de cliente exitosamente.");
+            }
 
             // Paso 2b: Recibir reto del cliente
             String reto = entrada.readUTF();
-            System.out.println("Reto recibido: " + reto);
+            System.out.println("2b. Reto recibido del cliente: " + reto);
+            
 
             // Paso 3: Calcular Rta = C(K_w-, Reto)
             byte[] retoBytes = reto.getBytes();
             byte[] rtaCalculada = CifradoUtils.cifrarRSAPrivada(retoBytes, llavePrivadaRSA);
+            System.out.println("3. Se calculo Rta existosamente");
 
             // Paso 4: Enviar Rta al cliente
             salida.writeInt(rtaCalculada.length);
             salida.write(rtaCalculada);
             salida.flush();
+            System.out.println("4. Se envio Rta a cliente.");
 
             // Paso 6: Recibir "OK" o "ERROR" del cliente
             String verificacion = entrada.readUTF();
             if (!verificacion.equals("OK")) {
-                System.err.println("Cliente reporta verificación fallida");
+                System.err.println("6. Se recibio 'ERROR': cliente reporta verificación fallida");
                 return;
             }
+            System.out.println("6. Se recibio 'OK' correctamente");
             
-            // Paso 7: Generar G, P, G^a para Diffie-Hellman
+            // Paso 7: Generar G, P, G^x para Diffie-Hellman
             DHParameterSpec dhParams = CifradoUtils.generarParametrosDH();
             BigInteger p = dhParams.getP();
             BigInteger g = dhParams.getG();
@@ -109,6 +118,8 @@ public class ClienteHandler extends Thread  {
             // Generar par de llaves DH para el servidor
             KeyPair servidorDHPair = CifradoUtils.generarParLlavesDH(dhParams);
             PublicKey servidorDHPublica = servidorDHPair.getPublic();
+
+            System.out.println("7. Se generaron G, P, G^x correctamente");
             
             // Paso 8: Enviar G, P, G^a y la firma F(K_w-, (G,P,G^a))
             // Enviar G
@@ -139,36 +150,45 @@ public class ClienteHandler extends Thread  {
             salida.writeInt(firma.length);
             salida.write(firma);
             salida.flush();
+
+            System.out.println("8. Se Enviaron G, P, G^x y la firma F(K_w-, (G,P,G^a)) correctamente al cliente");
             
             // Paso 10: Recibir respuesta del cliente
             String respuesta = entrada.readUTF();
             if (!respuesta.equals("OK")) {
-                System.err.println("Cliente rechazó los parámetros DH");
+                System.err.println("10. Se recibio 'ERROR': Cliente rechazó los parámetros G, P, G^x y la firma");
                 return;
             }
+            System.out.println("10. Se recibio 'OK' correctamente");
             
             // Paso 11a: Recibir G^y del cliente
             int gYLength = entrada.readInt();
             byte[] gYBytes = new byte[gYLength];
             entrada.readFully(gYBytes);
+
+            System.out.println("10. Se recibio G^y correctamente");
             
             // Reconstruir llave pública DH del cliente
             KeyFactory keyFactory = KeyFactory.getInstance("DH");
             X509EncodedKeySpec x509KeySpec = new X509EncodedKeySpec(gYBytes);
             PublicKey clienteDHPublica = keyFactory.generatePublic(x509KeySpec);
             
-            // Paso 11b: Calcular (G^y)^a = secreto compartido
+            // Paso 11b: Calcular (G^y)^x = secreto compartido
             byte[] secretoCompartido = CifradoUtils.calcularLlaveSecretaDH(servidorDHPair.getPrivate(), clienteDHPublica);
             
             // Generar llaves simétricas para cifrado (K_AB1) y MAC (K_AB2)
             SecretKey[] llaves = CifradoUtils.generarLlavesSesion(secretoCompartido);
             llaveCifrado = llaves[0]; // K_AB1
             llaveHMAC = llaves[1];    // K_AB2
+
+            System.out.println("11b. Se calculo(G^y)^x correctamente y las llaves simetricas K_AB1 y K_AB2");
             
-            // Paso 12a/12b: Recibir IV del cliente
+            // Paso 12b: Recibir IV del cliente
             int ivLength = entrada.readInt();
             iv = new byte[ivLength];
             entrada.readFully(iv);
+
+            System.out.println("12b. Se recibio el IV del cliente correctamente");
             
             // Paso 13: Enviar C(K_AB1, tabla_ids_servicios) y HMAC(K_AB2, tabla_ids_servicios)
             // Crear la tabla de servicios como string
@@ -189,6 +209,8 @@ public class ClienteHandler extends Thread  {
             salida.writeInt(hmac.length);
             salida.write(hmac);
             salida.flush();
+
+            System.out.println("13. Se envio C(K_AB1, tabla_ids_servicios) y HMAC(K_AB2, tabla_ids_servicios) correctamente al cliente");
             
             // Paso 14: Recibir id_servicio+IP_cliente cifrado y su HMAC
             int mensajeCifradoLength = entrada.readInt();
@@ -198,14 +220,17 @@ public class ClienteHandler extends Thread  {
             int hmacLength = entrada.readInt();
             byte[] hmacRecibido = new byte[hmacLength];
             entrada.readFully(hmacRecibido);
+
+            System.out.println("14. Se recibio C(K_AB1, id_servicio+IP_cliente) y HMAC(K_AB2, id_servicio+IP_cliente) correctamente");
             
             // Paso 15: Verificar HMAC y responder
             if (!CifradoUtils.verificarHMAC(mensajeCifrado, hmacRecibido, llaveHMAC)) {
                 salida.writeUTF("ERROR");
                 salida.flush();
-                System.err.println("Verificación HMAC fallida");
+                System.err.println("15.Verificación HMAC fallida");
                 return;
             }
+            System.out.println("15.Verificación HMAC exitosa");
             
             // Descifrar el mensaje para obtener id_servicio
             byte[] mensajeClaro = CifradoUtils.descifrarAES(mensajeCifrado, llaveCifrado, iv);
@@ -234,10 +259,12 @@ public class ClienteHandler extends Thread  {
             salida.writeInt(respuestaHMAC.length);
             salida.write(respuestaHMAC);
             salida.flush();
+
+            System.err.println("16. Se envio C(K_AB1, ip_servidor+puerto_servidor) y HMAC al cliente correctamente");
             
             // Paso 18: Recibir confirmación final
             String confirmacion = entrada.readUTF();
-            System.out.println("Confirmación del cliente: " + confirmacion);
+            System.out.println("18. Se recibio onfirmación del cliente: " + confirmacion);
             
         } catch (Exception e) {
             System.err.println("Error en comunicación con cliente: " + e.getMessage());
