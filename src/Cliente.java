@@ -7,6 +7,7 @@ import java.security.*;
 import java.security.spec.*;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Random;
 import java.util.Scanner;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.*;
@@ -27,7 +28,7 @@ public class Cliente extends Thread {
         System.out.print("Por favor, introduzca la cantidad de clientes que desea ejecutar:\n> ");
         int numClientes = scannerGlobal.nextInt();
         
-        int i = 1;
+        int i = 1; 
         while (i <= numClientes) {
             Cliente cliente = new Cliente(i);
             cliente.start();
@@ -201,10 +202,10 @@ public class Cliente extends Thread {
             System.out.println(tablaServicios);
             
             // Seleccionar un servicio
-            synchronized (scannerGlobal) {
-                //COMO HACEMOS SI SON THREADS?
-            System.out.println("Ingrese el ID del servicio que desea utilizar:");
-            String idServicio = scannerGlobal.nextLine();
+            Random random = new Random();
+            int numeroAleatorio = random.nextInt(3) + 1; 
+            String idServicio = "S"+String.valueOf(numeroAleatorio);
+            System.out.println("Se selecciono el servicio "+idServicio+" correctamente.");
             // Crear mensaje con ID de servicio e IP del cliente
             String ipCliente = InetAddress.getLocalHost().getHostAddress();
             String mensaje = idServicio + "+" + ipCliente;
@@ -218,7 +219,6 @@ public class Cliente extends Thread {
             salida.write(hmacMensaje);
             salida.flush();
             System.out.println("14. Se envio C(K_AB1, id_servicio+IP_cliente) y HMAC correctamente");
-            }
             
             // Paso 16: Recibir C(K_AB1, id_servicio+puerto_servidor) y HMAC 
             int datosCifradosLength = entrada.readInt();
