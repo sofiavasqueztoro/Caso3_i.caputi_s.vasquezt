@@ -26,6 +26,13 @@ public class CifradoUtils {
         cipher.init(Cipher.ENCRYPT_MODE, llave);
         return cipher.doFinal(datos);
     }
+
+    //     // Función para cifrar con RSA usando la llave publica
+    public static byte[] cifrarRSAPublica(byte[] datos, PublicKey llave) throws Exception {
+        Cipher cipher = Cipher.getInstance("RSA");
+        cipher.init(Cipher.ENCRYPT_MODE, llave);
+        return cipher.doFinal(datos);
+    }
     
     // Función para descifrar con RSA usando la llave pública (para verificar autenticación)
     public static byte[] descifrarRSAPublica(byte[] datosCifrados, PublicKey llave) throws Exception {

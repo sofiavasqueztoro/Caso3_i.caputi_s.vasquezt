@@ -209,6 +209,8 @@ public class Cliente extends Thread {
             // Crear mensaje con ID de servicio e IP del cliente
             String ipCliente = InetAddress.getLocalHost().getHostAddress();
             String mensaje = idServicio + "+" + ipCliente;
+
+            
             // Paso 14: Enviar C(K_AB1, id_servicio+IP_cliente) y HMAC
             byte[] mensajeCifrado = CifradoUtils.cifrarAES(mensaje.getBytes(), llaveCifrado, iv);
             byte[] hmacMensaje = CifradoUtils.generarHMAC(mensajeCifrado, llaveHMAC);

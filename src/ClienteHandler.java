@@ -9,6 +9,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.*;
 
@@ -22,9 +23,7 @@ public class ClienteHandler extends Thread  {
     private static PrivateKey llavePrivadaRSA;
     private static PublicKey llavePublicaRSA;
     private static Map<String, Servicio> servicios = new HashMap<>();
-
-
-
+    private static String tipoCifrado = "1"; // ("1" for simetrico, "2" for asimetrico)
     
     public ClienteHandler(Socket socket) {
         this.clienteSocket = socket;
@@ -142,7 +141,11 @@ public class ClienteHandler extends Thread  {
             datosAFirmar.write(gABytes);
             
             // Firmar con llave privada RSA
+            long inicioFirma = System.currentTimeMillis();
             byte[] firma = CifradoUtils.firmar(datosAFirmar.toByteArray(), llavePrivadaRSA);
+            long finFirma = System.currentTimeMillis();
+            long tiempoFirma = finFirma - inicioFirma;
+            System.out.println("   El tiempo para firmar fue: " + tiempoFirma + " ms");
             
             // Enviar firma F(K_w-, (G,P,G^a))
             salida.writeInt(firma.length);
@@ -194,9 +197,15 @@ public class ClienteHandler extends Thread  {
             for (Servicio servicio : servicios.values()) {
                 tablaIds.append(servicio.toString()).append(";");
             }
-            
+
+            long inicioCifradoTabla = System.currentTimeMillis();
             // Cifrar la tabla de servicios
-            byte[] tablaCifrada = CifradoUtils.cifrarAES(tablaIds.toString().getBytes(), llaveCifrado, iv);
+             byte[] tablaCifrada = CifradoUtils.cifrarAES(tablaIds.toString().getBytes(), llaveCifrado, iv);
+
+            long finCifradoTabla = System.currentTimeMillis();
+            long tiempoCifradoTabla = finCifradoTabla - inicioCifradoTabla;
+            System.out.println("   El tiempo para cifrar la tabla fue: " + tiempoCifradoTabla + " ms");
+        
             
             // Generar HMAC
             byte[] hmac = CifradoUtils.generarHMAC(tablaCifrada, llaveHMAC);
@@ -222,12 +231,17 @@ public class ClienteHandler extends Thread  {
             System.out.println("14. Se recibio C(K_AB1, id_servicio+IP_cliente) y HMAC(K_AB2, id_servicio+IP_cliente) correctamente");
             
             // Paso 15: Verificar HMAC y responder
+            long inicioVerificacion = System.currentTimeMillis();
+
             if (!CifradoUtils.verificarHMAC(mensajeCifrado, hmacRecibido, llaveHMAC)) {
                 salida.writeUTF("ERROR");
                 salida.flush();
                 System.err.println("15.Verificación HMAC fallida");
                 return;
             }
+            long finVerificacion = System.currentTimeMillis();
+            long tiempoVerificacion = finVerificacion - inicioVerificacion;
+            System.out.println("   El tiempo para verificar la consulta (HMAC) fue: " + tiempoVerificacion + " ms");
             System.out.println("15.Verificación HMAC exitosa");
             
             // Descifrar el mensaje para obtener id_servicio
@@ -260,6 +274,28 @@ public class ClienteHandler extends Thread  {
 
             System.err.println("16. Se envio C(K_AB1, ip_servidor+puerto_servidor) y HMAC al cliente correctamente");
             
+
+            long inicio_tipoCifradoPaquete = System.currentTimeMillis();
+            long inicioCifrado = System.currentTimeMillis();
+
+            if (tipoCifrado.equals("1")) {
+                // Cifrado simétrico con AES
+                respuestaCifrada = CifradoUtils.cifrarAES(respuestaServicio.getBytes(), llaveCifrado, iv);
+                System.out.println("16. Usando cifrado simétrico AES para la respuesta del servicio");
+            } else {
+                // Cifrado asimétrico con RSA
+                respuestaCifrada = CifradoUtils.cifrarRSAPublica(respuestaServicio.getBytes(), llavePublicaRSA);
+                System.out.println("16. Usando cifrado asimétrico RSA para la respuesta del servicio");
+            }
+
+            long finCifrado = System.currentTimeMillis();
+            System.out.println("Tiempo de cifrado: " + (finCifrado - inicioCifrado) + " ms");
+
+
+            long fin_tipoCifradoPaquete = System.currentTimeMillis();
+            long tiempo_tipoCifradoPaquete = fin_tipoCifradoPaquete - inicio_tipoCifradoPaquete;
+            System.out.println("   El tiempo para cifrar el paquete fue: "+tiempo_tipoCifradoPaquete+" ms");
+
             // Paso 18: Recibir confirmación final
             String confirmacion = entrada.readUTF();
             System.out.println("18. Se recibio onfirmación del cliente: " + confirmacion);
