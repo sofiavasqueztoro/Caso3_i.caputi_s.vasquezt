@@ -8,8 +8,6 @@ import java.security.spec.*;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-
-import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.*;
 
@@ -24,7 +22,8 @@ public class ClienteHandler extends Thread  {
     private static PublicKey llavePublicaRSA;
     private static Map<String, Servicio> servicios = new HashMap<>();
     private static String tipoCifrado = "1"; // ("1" for simetrico, "2" for asimetrico)
-    
+
+
     public ClienteHandler(Socket socket) {
         this.clienteSocket = socket;
         try {
@@ -66,16 +65,20 @@ public class ClienteHandler extends Thread  {
     
     @Override
     public void run() {
-        try {                
+        try {            
             // Inicializar tabla de servicios
-            
             inicializarServicios();
             // Paso 0a: Leer llaves de archivo 
             cargarLlavesRSA();
             System.out.println("0a. Se leyeron las llaves de archivos extosamente.");
             // Paso 1: Recibir "HELLO" del cliente
             String mensaje = entrada.readUTF();
-            if (!mensaje.equals("HELLO")) {
+            if (mensaje.equals("SHUTDOWN")) {
+                System.out.println("Comando de apagado recibido. Cerrando servidor...");
+                ServidorPrincipal.stopServer();
+                return;
+            }
+            else if (!mensaje.equals("HELLO")) {
                 System.err.println("Mensaje incorrecto recibido. Se esperaba 'HELLO'");
                 return;
             }
@@ -145,8 +148,9 @@ public class ClienteHandler extends Thread  {
             byte[] firma = CifradoUtils.firmar(datosAFirmar.toByteArray(), llavePrivadaRSA);
             long finFirma = System.currentTimeMillis();
             long tiempoFirma = finFirma - inicioFirma;
-            System.out.println("   El tiempo para firmar fue: " + tiempoFirma + " ms");
-            
+            System.out.println("El tiempo para firmar fue: " + tiempoFirma + " ms");
+            ServidorPrincipal.tiempoFirmaTotal+=tiempoFirma;
+
             // Enviar firma F(K_w-, (G,P,G^a))
             salida.writeInt(firma.length);
             salida.write(firma);
@@ -204,8 +208,8 @@ public class ClienteHandler extends Thread  {
 
             long finCifradoTabla = System.currentTimeMillis();
             long tiempoCifradoTabla = finCifradoTabla - inicioCifradoTabla;
-            System.out.println("   El tiempo para cifrar la tabla fue: " + tiempoCifradoTabla + " ms");
-        
+            System.out.println("El tiempo para cifrar la tabla fue: " + tiempoCifradoTabla + " ms");
+            ServidorPrincipal.tiempoCifradoTablaTotal+=tiempoCifradoTabla;
             
             // Generar HMAC
             byte[] hmac = CifradoUtils.generarHMAC(tablaCifrada, llaveHMAC);
@@ -220,18 +224,18 @@ public class ClienteHandler extends Thread  {
             System.out.println("13. Se envio C(K_AB1, tabla_ids_servicios) y HMAC(K_AB2, tabla_ids_servicios) correctamente al cliente");
             
             // Paso 14: Recibir id_servicio+IP_cliente cifrado y su HMAC
+
             int mensajeCifradoLength = entrada.readInt();
             byte[] mensajeCifrado = new byte[mensajeCifradoLength];
             entrada.readFully(mensajeCifrado);
-            
             int hmacLength = entrada.readInt();
             byte[] hmacRecibido = new byte[hmacLength];
             entrada.readFully(hmacRecibido);
 
             System.out.println("14. Se recibio C(K_AB1, id_servicio+IP_cliente) y HMAC(K_AB2, id_servicio+IP_cliente) correctamente");
+            long inicioVerificacion = System.currentTimeMillis();
             
             // Paso 15: Verificar HMAC y responder
-            long inicioVerificacion = System.currentTimeMillis();
 
             if (!CifradoUtils.verificarHMAC(mensajeCifrado, hmacRecibido, llaveHMAC)) {
                 salida.writeUTF("ERROR");
@@ -239,10 +243,11 @@ public class ClienteHandler extends Thread  {
                 System.err.println("15.Verificación HMAC fallida");
                 return;
             }
+            System.out.println("15.Verificación HMAC exitosa");
             long finVerificacion = System.currentTimeMillis();
             long tiempoVerificacion = finVerificacion - inicioVerificacion;
-            System.out.println("   El tiempo para verificar la consulta (HMAC) fue: " + tiempoVerificacion + " ms");
-            System.out.println("15.Verificación HMAC exitosa");
+            System.out.println("El tiempo para verificar la consulta (HMAC) fue: " + tiempoVerificacion + " ms");
+            ServidorPrincipal.tiempoVerificacionTotal+=tiempoVerificacion;
             
             // Descifrar el mensaje para obtener id_servicio
             byte[] mensajeClaro = CifradoUtils.descifrarAES(mensajeCifrado, llaveCifrado, iv);
@@ -294,7 +299,8 @@ public class ClienteHandler extends Thread  {
 
             long fin_tipoCifradoPaquete = System.currentTimeMillis();
             long tiempo_tipoCifradoPaquete = fin_tipoCifradoPaquete - inicio_tipoCifradoPaquete;
-            System.out.println("   El tiempo para cifrar el paquete fue: "+tiempo_tipoCifradoPaquete+" ms");
+            System.out.println("El tiempo para cifrar el paquete fue: "+tiempo_tipoCifradoPaquete+" ms");
+            ServidorPrincipal.tiempo_tipoCifradoPaqueteTotal+=tiempo_tipoCifradoPaquete;
 
             // Paso 18: Recibir confirmación final
             String confirmacion = entrada.readUTF();

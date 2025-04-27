@@ -9,6 +9,8 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.concurrent.CountDownLatch;
+
 import javax.crypto.SecretKey;
 import javax.crypto.spec.*;
 
@@ -18,24 +20,89 @@ public class Cliente extends Thread {
     private static PublicKey llavePublicaRSA;
     private static final Scanner scannerGlobal = new Scanner(System.in);
     private final int clientId;
+    private final CountDownLatch latch;
 
-    public Cliente(int id) {
+    // Constructor para cliente con CountDownLatch para sincronización
+    public Cliente(int id, CountDownLatch thelatch) {
         this.clientId = id;
+        this.latch = thelatch;
     }
 
-    
     public static void main(String[] args) {
-        System.out.print("Por favor, introduzca la cantidad de clientes que desea ejecutar:\n> ");
-        int numClientes = scannerGlobal.nextInt();
+        System.out.println("=== CLIENTE DE PRUEBA DE RENDIMIENTO ===");
+        System.out.println("Escoja el escenario de prueba:");
+        System.out.println("1. Cliente iterativo (32 consultas secuenciales)");
+        System.out.println("2. Clientes concurrentes (4, 16, 32 o 64 clientes)");
+        System.out.print("> ");
         
-        int i = 1; 
-        while (i <= numClientes) {
-            Cliente cliente = new Cliente(i);
-            cliente.start();
-
-            i++;
+        int escenario = scannerGlobal.nextInt();
+        
+        
+        switch (escenario) {
+            case 1:
+                ejecutarClienteIterativo();
+                break;
+            case 2:
+                ejecutarClientesConcurrentes();
+                break;
+            default:
+                System.out.println("Opción no válida");
+                break;
         }
+    }
 
+    private static void ejecutarClienteIterativo() {
+        try {
+            cargarLlavePublica();
+            
+            System.out.println("\n=== EJECUTANDO CLIENTE ITERATIVO (32 CONSULTAS) ===");
+            
+            for (int i = 1; i <= 32; i++) {
+                System.out.println("\n--- Consulta " + i + " de 32 ---");
+                
+                CountDownLatch latch = new CountDownLatch(1);
+                Cliente cliente = new Cliente(i, latch);
+                cliente.start();
+                latch.await(); // Esperar a que termine esta consulta antes de iniciar la siguiente
+            }
+
+            enviarComandoApagado();
+            
+            
+        } catch (Exception e) {
+            System.err.println("Error en la ejecución del cliente iterativo:");
+            e.printStackTrace();
+        }
+    }
+
+    private static void ejecutarClientesConcurrentes() {
+        System.out.println("\nIngrese el número de delegados concurrentes (4,16,32,64):");
+        System.out.print("> ");
+        
+        int delegados = scannerGlobal.nextInt();
+        
+        try {
+            cargarLlavePublica();
+            
+            System.out.println("\n=== EJECUTANDO " + delegados + " CLIENTES CONCURRENTES ===");
+            
+            CountDownLatch latch = new CountDownLatch(delegados);
+            
+            // Crear y iniciar todos los clientes
+            for (int i = 1; i <= delegados; i++) {
+                Cliente cliente = new Cliente(i, latch);
+                cliente.start();
+            }
+            
+            // Esperar a que todos los clientes terminen
+            latch.await();
+            
+            enviarComandoApagado();
+            
+        } catch (Exception e) {
+            System.err.println("Error en la ejecución de clientes concurrentes:");
+            e.printStackTrace();
+        }
     }
 
     public void run() {
@@ -278,8 +345,30 @@ public class Cliente extends Thread {
             System.err.println("Error durante la comunicación con el servidor:");
             e.printStackTrace();
         }
+        finally {
+            if (latch != null) {
+                latch.countDown(); // Indicar que este cliente ha terminado
+            }
+        }
     
         } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void enviarComandoApagado() {
+        try (Socket socket = new Socket(HOST_SERVIDOR, PUERTO_SERVIDOR);
+            DataInputStream entrada = new DataInputStream(socket.getInputStream());
+            DataOutputStream salida = new DataOutputStream(socket.getOutputStream())) {
+            
+            System.out.println("Enviando comando de apagado al servidor...");
+            salida.writeUTF("SHUTDOWN");
+            salida.flush();
+            System.out.println("Comando de apagado enviado exitosamente.");
+
+            
+        } catch (Exception e) {
+            System.err.println("Error al enviar comando de apagado:");
             e.printStackTrace();
         }
     }
@@ -306,3 +395,5 @@ public class Cliente extends Thread {
     }
     
 }
+
+

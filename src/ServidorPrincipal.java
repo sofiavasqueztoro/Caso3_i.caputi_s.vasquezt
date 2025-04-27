@@ -4,11 +4,16 @@ import java.net.*;
 public class ServidorPrincipal {
     private static final int PUERTO = 5000;
     private static boolean fin = false;
+    public static Long tiempoFirmaTotal= 0L;
+    public static long tiempoCifradoTablaTotal= 0L;
+    public static long tiempoVerificacionTotal= 0L;
+    public static long tiempo_tipoCifradoPaqueteTotal= 0L;
     
     public static void main(String[] args) {
         // Crear el socket del servidor, crea un hilo para cada cliente
         try(ServerSocket serverSocket = new ServerSocket(PUERTO)){
             System.out.println("Servidor listo y esperando en el puerto: "+PUERTO);
+            
             while(!fin){
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("1.  Cliente conectado: "+clientSocket.getInetAddress());
@@ -20,6 +25,14 @@ public class ServidorPrincipal {
             System.out.println("No se pudo crear el socket en el puerto "+PUERTO);
         }
     
+    }
+
+    public static void stopServer() {
+        fin = true;
+        System.out.println("El tiempo total para firmar fue: " + (double) tiempoFirmaTotal + " ms");
+        System.out.println("El tiempo total para cifrar la tabla fue: " + (double) tiempoCifradoTablaTotal + " ms");
+        System.out.println("El tiempo total para verificar de la consulta (HMAC) fue: " + (double) tiempoVerificacionTotal + " ms");
+        System.out.println("El tiempo total para cifrar el paquete fue: "+(double) tiempo_tipoCifradoPaqueteTotal+" ms");
     }
     
 }
