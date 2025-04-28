@@ -59,11 +59,14 @@ public class Cliente extends Thread {
             
             for (int i = 1; i <= 32; i++) {
                 System.out.println("\n--- Consulta " + i + " de 32 ---");
-                
-                CountDownLatch latch = new CountDownLatch(1);
-                Cliente cliente = new Cliente(i, latch);
-                cliente.start();
-                latch.await(); // Esperar a que termine esta consulta antes de iniciar la siguiente
+                try (Socket socket = new Socket(HOST_SERVIDOR, PUERTO_SERVIDOR);
+                DataInputStream entrada = new DataInputStream(socket.getInputStream());
+                DataOutputStream salida = new DataOutputStream(socket.getOutputStream())) {
+                    ejecutarProtocolo(entrada,salida);
+                } catch (Exception e) {
+                    System.err.println("Error durante la comunicación con el servidor:");
+                    e.printStackTrace();
+                }
             }
 
             enviarComandoApagado();
@@ -90,11 +93,11 @@ public class Cliente extends Thread {
             
             // Crear y iniciar todos los clientes
             for (int i = 1; i <= delegados; i++) {
-                Cliente cliente = new Cliente(i, latch);
+                Cliente cliente = new Cliente(i,latch);
                 cliente.start();
             }
             
-            // Esperar a que todos los clientes terminen
+            //Esperar a que todos los clientes terminen
             latch.await();
             
             enviarComandoApagado();
@@ -107,12 +110,26 @@ public class Cliente extends Thread {
 
     public void run() {
         try {
+        System.out.println("Cliente " + clientId + " iniciando conexión...");
+        try (Socket socket = new Socket(HOST_SERVIDOR, PUERTO_SERVIDOR);
+        DataInputStream entrada = new DataInputStream(socket.getInputStream());
+        DataOutputStream salida = new DataOutputStream(socket.getOutputStream())) {
+        ejecutarProtocolo(entrada,salida);
+        } catch (Exception e) {
+            System.err.println("Error durante la comunicación con el servidor:");
+            e.printStackTrace();
+        }
+        
+        if (latch != null) {
+                 latch.countDown(); // Indicar que este cliente ha terminado
+             }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+    }
 
-            System.out.println("Cliente " + clientId + " iniciando conexión...");
-
-            try (Socket socket = new Socket(HOST_SERVIDOR, PUERTO_SERVIDOR);
-             DataInputStream entrada = new DataInputStream(socket.getInputStream());
-             DataOutputStream salida = new DataOutputStream(socket.getOutputStream())) {
+    public static void ejecutarProtocolo(DataInputStream entrada, DataOutputStream salida) throws Exception{
+        
 
 
             // Paso 0b: Cargar llave pública RSA del servidor
@@ -338,22 +355,8 @@ public class Cliente extends Thread {
             
             System.out.println("Conexión establecida correctamente con el servidor principal");
             System.out.println("Datos del servidor de servicio: " + ipServidor + ":" + puertoServidor);
-            
-            
-            
-        } catch (Exception e) {
-            System.err.println("Error durante la comunicación con el servidor:");
-            e.printStackTrace();
-        }
-        finally {
-            if (latch != null) {
-                latch.countDown(); // Indicar que este cliente ha terminado
-            }
-        }
+        
     
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     public static void enviarComandoApagado() {
