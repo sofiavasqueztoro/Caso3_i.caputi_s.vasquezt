@@ -21,7 +21,7 @@ public class ClienteHandler extends Thread  {
     private static PrivateKey llavePrivadaRSA;
     private static PublicKey llavePublicaRSA;
     private static Map<String, Servicio> servicios = new HashMap<>();
-    private static String tipoCifrado = "1"; // ("1" for simetrico, "2" for asimetrico)
+    private static String tipoCifrado = "2"; // ("1" for simetrico, "2" for asimetrico)
 
 
     public ClienteHandler(Socket socket) {
@@ -93,6 +93,8 @@ public class ClienteHandler extends Thread  {
             
             // Paso 3: Calcular Rta = C(K_w-, Reto)
             byte[] retoBytes = reto.getBytes();
+            
+            
             byte[] rtaCalculada = CifradoUtils.cifrarRSAPrivada(retoBytes, llavePrivadaRSA);
             System.out.println("3. Se calculo Rta existosamente");
 
@@ -269,8 +271,25 @@ public class ClienteHandler extends Thread  {
             }
             
             // Paso 16: Enviar C(K_AB1, ip_servidor+puerto_servidor) y su HMAC
+            long inicioCifradoSimetrico = System.currentTimeMillis();
+
             byte[] respuestaCifrada = CifradoUtils.cifrarAES(respuestaServicio.getBytes(), llaveCifrado, iv);
-            byte[] respuestaHMAC = CifradoUtils.generarHMAC(respuestaCifrada, llaveHMAC);
+            long finCifradoSimetrico = System.currentTimeMillis();
+            System.out.println("Tiempo de cifrado Simetrico: " + (finCifradoSimetrico - inicioCifradoSimetrico) + " ms");
+            ServidorPrincipal.tiempo_tipoCifradoSimetricoTotal+= (finCifradoSimetrico - inicioCifradoSimetrico);
+
+            // Cifrado asimétrico con RSA
+            long inicioCifradoAsimetrico = System.currentTimeMillis();
+
+            byte [] respuestaCifradaAsimetrico = CifradoUtils.cifrarRSAPublica(respuestaServicio.getBytes(), llavePublicaRSA);
+                System.out.println("16. Usando cifrado asimétrico RSA para la respuesta del servicio");
+                        long finCifradoAsimetrico = System.currentTimeMillis();
+
+            System.out.println("Tiempo de cifrado Asimetrico: " + (finCifradoAsimetrico - inicioCifradoAsimetrico) + " ms");
+            ServidorPrincipal.tiempo_tipoCifradoAsimetricoTotal+= (finCifradoAsimetrico - inicioCifradoAsimetrico);
+
+            byte[] respuestaHMAC    = CifradoUtils.generarHMAC(respuestaCifrada, llaveHMAC);
+
             
             salida.writeInt(respuestaCifrada.length);
             salida.write(respuestaCifrada);
@@ -281,27 +300,6 @@ public class ClienteHandler extends Thread  {
             System.err.println("16. Se envio C(K_AB1, ip_servidor+puerto_servidor) y HMAC al cliente correctamente");
             
 
-            long inicio_tipoCifradoPaquete = System.currentTimeMillis();
-            long inicioCifrado = System.currentTimeMillis();
-
-            if (tipoCifrado.equals("1")) {
-                // Cifrado simétrico con AES
-                respuestaCifrada = CifradoUtils.cifrarAES(respuestaServicio.getBytes(), llaveCifrado, iv);
-                System.out.println("16. Usando cifrado simétrico AES para la respuesta del servicio");
-            } else {
-                // Cifrado asimétrico con RSA
-                respuestaCifrada = CifradoUtils.cifrarRSAPublica(respuestaServicio.getBytes(), llavePublicaRSA);
-                System.out.println("16. Usando cifrado asimétrico RSA para la respuesta del servicio");
-            }
-
-            long finCifrado = System.currentTimeMillis();
-            System.out.println("Tiempo de cifrado: " + (finCifrado - inicioCifrado) + " ms");
-
-
-            long fin_tipoCifradoPaquete = System.currentTimeMillis();
-            long tiempo_tipoCifradoPaquete = fin_tipoCifradoPaquete - inicio_tipoCifradoPaquete;
-            System.out.println("El tiempo para cifrar el paquete fue: "+tiempo_tipoCifradoPaquete+" ms");
-            ServidorPrincipal.tiempo_tipoCifradoPaqueteTotal+=tiempo_tipoCifradoPaquete;
 
             // Paso 18: Recibir confirmación final
             String confirmacion = entrada.readUTF();
