@@ -30,7 +30,7 @@ public class ClienteHandler extends Thread  {
             this.entrada = new DataInputStream(socket.getInputStream());
             this.salida = new DataOutputStream(socket.getOutputStream());
         } catch (IOException e) {
-            System.err.println("Error inicializando streams: " + e.getMessage());
+            System.err.println("Error iniciando: " + e.getMessage());
         }
     }
 
@@ -57,7 +57,7 @@ public class ClienteHandler extends Thread  {
         }
     }
     private static void inicializarServicios() {
-        // Inicializar la tabla de servicios predefinida
+        // se crea la tabla de servicios predefinida
         servicios.put("S1", new Servicio("Consulta de Vuelos", "S1", "192.168.1.10", 5001));
         servicios.put("S2", new Servicio("Disponibilidad de Vuelos", "S2", "192.168.1.11", 5002));
         servicios.put("S3", new Servicio("Costo de Vuelos", "S3", "192.168.1.12", 5003));
@@ -70,10 +70,11 @@ public class ClienteHandler extends Thread  {
             inicializarServicios();
             // Paso 0a: Leer llaves de archivo 
             cargarLlavesRSA();
-            System.out.println("0a. Se leyeron las llaves de archivos extosamente.");
+            System.out.println("0a. Se leyeron las llaves de archivos exitosamente.");
             // Paso 1: Recibir "HELLO" del cliente
             String mensaje = entrada.readUTF();
             if (mensaje.equals("SHUTDOWN")) {
+                //Si el mensaje enviado por cliente es SHUTDOWN, se debe apagar el servidor
                 System.out.println("Comando de apagado recibido. Cerrando servidor...");
                 ServidorPrincipal.stopServer();
                 return;
@@ -90,7 +91,6 @@ public class ClienteHandler extends Thread  {
             String reto = entrada.readUTF();
             System.out.println("2b. Reto recibido del cliente: " + reto);
             
-
             // Paso 3: Calcular Rta = C(K_w-, Reto)
             byte[] retoBytes = reto.getBytes();
             byte[] rtaCalculada = CifradoUtils.cifrarRSAPrivada(retoBytes, llavePrivadaRSA);
@@ -243,6 +243,7 @@ public class ClienteHandler extends Thread  {
                 System.err.println("15.Verificación HMAC fallida");
                 return;
             }
+            
             System.out.println("15.Verificación HMAC exitosa");
             long finVerificacion = System.currentTimeMillis();
             long tiempoVerificacion = finVerificacion - inicioVerificacion;

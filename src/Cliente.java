@@ -9,10 +9,10 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Random;
 import java.util.Scanner;
-import java.util.concurrent.CountDownLatch;
-
 import javax.crypto.SecretKey;
 import javax.crypto.spec.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class Cliente extends Thread {
     private static final String HOST_SERVIDOR = "localhost";
@@ -22,21 +22,17 @@ public class Cliente extends Thread {
     private final int clientId;
     private final CountDownLatch latch;
 
-    // Constructor para cliente con CountDownLatch para sincronización
     public Cliente(int id, CountDownLatch thelatch) {
         this.clientId = id;
-        this.latch = thelatch;
+        this.latch=thelatch;
     }
 
     public static void main(String[] args) {
-        System.out.println("=== CLIENTE DE PRUEBA DE RENDIMIENTO ===");
-        System.out.println("Escoja el escenario de prueba:");
+        System.out.println("Bienvenido Usuario. Escoja el escenario de prueba:");
         System.out.println("1. Cliente iterativo (32 consultas secuenciales)");
         System.out.println("2. Clientes concurrentes (4, 16, 32 o 64 clientes)");
-        System.out.print("> ");
         
         int escenario = scannerGlobal.nextInt();
-        
         
         switch (escenario) {
             case 1:
@@ -55,7 +51,7 @@ public class Cliente extends Thread {
         try {
             cargarLlavePublica();
             
-            System.out.println("\n=== EJECUTANDO CLIENTE ITERATIVO (32 CONSULTAS) ===");
+            System.out.println("\n EJECUTANDO CLIENTE ITERATIVO (32 CONSULTAS)");
             
             for (int i = 1; i <= 32; i++) {
                 System.out.println("\n--- Consulta " + i + " de 32 ---");
@@ -80,26 +76,23 @@ public class Cliente extends Thread {
 
     private static void ejecutarClientesConcurrentes() {
         System.out.println("\nIngrese el número de delegados concurrentes (4,16,32,64):");
-        System.out.print("> ");
-        
         int delegados = scannerGlobal.nextInt();
         
         try {
             cargarLlavePublica();
             
-            System.out.println("\n=== EJECUTANDO " + delegados + " CLIENTES CONCURRENTES ===");
-            
+            System.out.println("\nEJECUTANDO " + delegados + " CLIENTES CONCURRENTES");
             CountDownLatch latch = new CountDownLatch(delegados);
             
             // Crear y iniciar todos los clientes
             for (int i = 1; i <= delegados; i++) {
                 Cliente cliente = new Cliente(i,latch);
                 cliente.start();
+                //le ponemos un sleep pequenio para que no hayan problemas de concurrencia con los threads y la coneccion al socket de cada cliente
+                TimeUnit.NANOSECONDS.sleep(5);
             }
-            
-            //Esperar a que todos los clientes terminen
+
             latch.await();
-            
             enviarComandoApagado();
             
         } catch (Exception e) {
@@ -110,39 +103,34 @@ public class Cliente extends Thread {
 
     public void run() {
         try {
-        System.out.println("Cliente " + clientId + " iniciando conexión...");
-        try (Socket socket = new Socket(HOST_SERVIDOR, PUERTO_SERVIDOR);
-        DataInputStream entrada = new DataInputStream(socket.getInputStream());
-        DataOutputStream salida = new DataOutputStream(socket.getOutputStream())) {
-        ejecutarProtocolo(entrada,salida);
-        } catch (Exception e) {
-            System.err.println("Error durante la comunicación con el servidor:");
-            e.printStackTrace();
-        }
-        
-        if (latch != null) {
-                 latch.countDown(); // Indicar que este cliente ha terminado
-             }
+            System.out.println("Cliente conectado: " + clientId + "");
+            try (Socket socket = new Socket(HOST_SERVIDOR, PUERTO_SERVIDOR);
+            DataInputStream entrada = new DataInputStream(socket.getInputStream());
+            DataOutputStream salida = new DataOutputStream(socket.getOutputStream())) {
+                ejecutarProtocolo(entrada,salida);
+                if (latch != null) {
+                    latch.countDown(); // Indicar que un cliente ha terminado
+                }
+            } catch (Exception e) {
+                System.err.println("Error durante la comunicación con el servidor:");
+                e.printStackTrace();
+            }
+
             } catch (Exception e) {
                 e.printStackTrace();
             }
     }
 
     public static void ejecutarProtocolo(DataInputStream entrada, DataOutputStream salida) throws Exception{
-        
-
-
             // Paso 0b: Cargar llave pública RSA del servidor
             cargarLlavePublica();
             System.out.println("0a. Se leyo la llave publica de archivo exitosamente.");
-            
             System.out.println("Conectado al servidor principal: " + HOST_SERVIDOR + ":" + PUERTO_SERVIDOR);
             
             // Paso 1: Enviar "HELLO"
             salida.writeUTF("HELLO");
             System.out.println("1. Se envio HELLO a servidor exitosamente.");
             salida.flush();
-
 
             // Paso 2a: Generar un reto aleatorio
             String reto = CifradoUtils.generarReto();
@@ -177,7 +165,6 @@ public class Cliente extends Thread {
                 System.out.println("6. Se  envio 'ERROR' correctamente al servidor");
             }
             
-            
             // Paso 8: Recibir G, P, G^x y firma
             // Recibir G
             int gLength = entrada.readInt();
@@ -196,7 +183,6 @@ public class Cliente extends Thread {
             byte[] gABytes = new byte[gALength];
             entrada.readFully(gABytes);
 
-            
             // Recibir firma F(K_w-, (G,P,G^x))
             int firmaLength = entrada.readInt();
             byte[] firma = new byte[firmaLength];
@@ -352,24 +338,18 @@ public class Cliente extends Thread {
             salida.writeUTF("OK");
             salida.flush();
             System.out.println("18. Se envio 'OK' correctamente al servidor.");
-            
-            System.out.println("Conexión establecida correctamente con el servidor principal");
+
             System.out.println("Datos del servidor de servicio: " + ipServidor + ":" + puertoServidor);
         
-    
     }
 
     public static void enviarComandoApagado() {
         try (Socket socket = new Socket(HOST_SERVIDOR, PUERTO_SERVIDOR);
             DataInputStream entrada = new DataInputStream(socket.getInputStream());
             DataOutputStream salida = new DataOutputStream(socket.getOutputStream())) {
-            
-            System.out.println("Enviando comando de apagado al servidor...");
             salida.writeUTF("SHUTDOWN");
             salida.flush();
-            System.out.println("Comando de apagado enviado exitosamente.");
-
-            
+            System.out.println("Comando de apagado enviado al servidor.");
         } catch (Exception e) {
             System.err.println("Error al enviar comando de apagado:");
             e.printStackTrace();
@@ -377,14 +357,12 @@ public class Cliente extends Thread {
     }
 
 
-    
     private static void cargarLlavePublica() {
         try {
-            // Cargar y decodificar llave pública RSA desde archivo .txt
+            // cargar y decodificar llave pública RSA desde archivo .txt
             String publicKeyBase64 = new String(Files.readAllBytes(Paths.get("public.txt")));
             byte[] decodedPublicKey = Base64.getDecoder().decode(publicKeyBase64);
-            
-            // Crear la llave pública a partir de los datos decodificados
+            // crear la llave pública a partir de la decodificacion
             X509EncodedKeySpec spec = new X509EncodedKeySpec(decodedPublicKey);
             KeyFactory kf = KeyFactory.getInstance("RSA");
             llavePublicaRSA = kf.generatePublic(spec);

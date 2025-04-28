@@ -1,12 +1,11 @@
 import java.security.*;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Random;
 import javax.crypto.*;
 import javax.crypto.spec.*;
 
 public class CifradoUtils {
-    // Constantes para los algoritmos
+    //definimos los algoritmos
     private static final String AES_ALGORITHM = "AES/CBC/PKCS5Padding";
     private static final String RSA_ALGORITHM = "RSA";
     private static final String SIGNATURE_ALGORITHM = "SHA256withRSA";
@@ -14,27 +13,27 @@ public class CifradoUtils {
     private static final String DH_ALGORITHM = "DiffieHellman";
     private static final int IV_LENGTH = 16;
     
-    // Función para generar un reto aleatorio
+    //Función que genera un reto aleatorio
     public static String generarReto() {
         Random random = new SecureRandom();
         return String.valueOf(Math.abs(random.nextLong()));
     }
     
-    // Función para cifrar con RSA usando la llave privada (para autenticación)
+    // Función para cifrar con RSA usando la llave privada
     public static byte[] cifrarRSAPrivada(byte[] datos, PrivateKey llave) throws Exception {
         Cipher cipher = Cipher.getInstance(RSA_ALGORITHM);
         cipher.init(Cipher.ENCRYPT_MODE, llave);
         return cipher.doFinal(datos);
     }
 
-    //     // Función para cifrar con RSA usando la llave publica
+    //Función para cifrar con RSA usando la llave publica
     public static byte[] cifrarRSAPublica(byte[] datos, PublicKey llave) throws Exception {
         Cipher cipher = Cipher.getInstance("RSA");
         cipher.init(Cipher.ENCRYPT_MODE, llave);
         return cipher.doFinal(datos);
     }
     
-    // Función para descifrar con RSA usando la llave pública (para verificar autenticación)
+    // Función para descifrar con RSA usando la llave pública
     public static byte[] descifrarRSAPublica(byte[] datosCifrados, PublicKey llave) throws Exception {
         Cipher cipher = Cipher.getInstance(RSA_ALGORITHM);
         cipher.init(Cipher.DECRYPT_MODE, llave);
@@ -115,16 +114,6 @@ public class CifradoUtils {
         byte[] iv = new byte[IV_LENGTH];
         random.nextBytes(iv);
         return iv;
-    }
-    
-    // Función para convertir byte[] a String en Base64
-    public static String bytesToBase64(byte[] bytes) {
-        return Base64.getEncoder().encodeToString(bytes);
-    }
-    
-    // Función para convertir String en Base64 a byte[]
-    public static byte[] base64ToBytes(String base64) {
-        return Base64.getDecoder().decode(base64);
     }
     
     // Función para generar llaves de sesión a partir de un secreto compartido

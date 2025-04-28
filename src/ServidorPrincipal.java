@@ -10,17 +10,16 @@ public class ServidorPrincipal {
     public static long tiempo_tipoCifradoPaqueteTotal= 0L;
     
     public static void main(String[] args) {
-        // Crear el socket del servidor, crea un hilo para cada cliente
+        //crear el socket del servidor
         try(ServerSocket serverSocket = new ServerSocket(PUERTO)){
             System.out.println("Servidor listo y esperando en el puerto: "+PUERTO);
-            
+            //creamos un thread de manejador de cliente, por el cual se ejecutara el protocolo del servidor para conectarse con el (o los) cliente(s)
             while(!fin){
                 Socket clientSocket = serverSocket.accept();
-                System.out.println("1.  Cliente conectado: "+clientSocket.getInetAddress());
+                System.out.println("---Cliente conectado---");
                 ClienteHandler clientHandler = new ClienteHandler(clientSocket);
                 clientHandler.start();
-            }
-            
+            }  
         } catch(IOException e){
             System.out.println("No se pudo crear el socket en el puerto "+PUERTO);
         }
@@ -28,6 +27,7 @@ public class ServidorPrincipal {
     }
 
     public static void stopServer() {
+        //Cuando acaban las consultas, se imprimen los tiempos totales (suma de tiempos de las consultas)
         fin = true;
         System.out.println("El tiempo total para firmar fue: " + (double) tiempoFirmaTotal + " ms");
         System.out.println("El tiempo total para cifrar la tabla fue: " + (double) tiempoCifradoTablaTotal + " ms");
