@@ -282,8 +282,8 @@ public class ClienteHandler extends Thread  {
             long inicioCifradoAsimetrico = System.currentTimeMillis();
 
             byte [] respuestaCifradaAsimetrico = CifradoUtils.cifrarRSAPublica(respuestaServicio.getBytes(), llavePublicaRSA);
-                System.out.println("16. Usando cifrado asimétrico RSA para la respuesta del servicio");
-                        long finCifradoAsimetrico = System.currentTimeMillis();
+            System.out.println("16. Usando cifrado asimétrico RSA para la respuesta del servicio");
+            long finCifradoAsimetrico = System.currentTimeMillis();
 
             System.out.println("Tiempo de cifrado Asimetrico: " + (finCifradoAsimetrico - inicioCifradoAsimetrico) + " ms");
             ServidorPrincipal.tiempo_tipoCifradoAsimetricoTotal+= (finCifradoAsimetrico - inicioCifradoAsimetrico);
